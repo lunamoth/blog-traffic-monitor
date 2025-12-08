@@ -2,8 +2,8 @@ name: Traffic Monitor
 
 on:
   schedule:
-    - cron: '59 14 * * *' # 매일 밤 11:59 (KST)
-  workflow_dispatch:      # 수동 실행
+    - cron: '59 14 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,86 +33,67 @@ jobs:
           import os
           import json
 
-          # --- 1. 설정 및 데이터 수집 ---
+          # --- 설정 ---
           URL = "http://lunamoth.com/throttle-me"
           CSV_FILE = "traffic_data.csv"
           HTML_FILE = "index.html"
+          
+          # 봇 차단 방지용 헤더
+          headers = {'User-Agent': 'Mozilla/5.0'}
 
-          # 가짜 헤더 (차단 방지용)
-          headers = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-
-          kbytes = 0
-          found = False
-
+          # 1. 데이터 수집
           try:
               print(f"Connecting to {URL}...")
               response = requests.get(URL, headers=headers, timeout=30)
-              response.raise_for_status()
               soup = BeautifulSoup(response.text, 'html.parser')
-
+              
+              kbytes = 0
+              found = False
+              
               rows = soup.find_all('tr')
               for row in rows:
                   if "lunamoth.biz" in row.text:
                       cols = [ele.text.strip() for ele in row.find_all(['td', 'th'])]
-                      # lunamoth.biz 행의 6번째(index 5) 데이터가 KBytes sent
+                      # 6번째 데이터 (인덱스 5)
                       if len(cols) > 5:
                           kbytes = int(cols[5])
                           found = True
                           break
               
-              if not found:
-                  print("Warning: Could not find traffic data using lxml, trying simple text search.")
-                  # 비상용 파싱 로직 (혹시나 해서)
-                  if "lunamoth.biz" in response.text:
-                      # 텍스트 구조상 단순히 숫자 파싱이 어렵지만 에러 방지용
-                      pass 
+              if found:
+                  # CSV 저장
+                  now = datetime.now()
+                  today_str = now.strftime("%Y-%m-%d")
+                  mbytes = round(kbytes / 1024, 2)
+                  
+                  new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
+                  
+                  if os.path.exists(CSV_FILE):
+                      df = pd.read_csv(CSV_FILE)
+                      df = df[df['date'] != today_str] # 중복 제거
+                      df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+                  else:
+                      df = pd.DataFrame([new_data])
+                  
+                  df['date'] = pd.to_datetime(df['date'])
+                  df = df.sort_values('date')
+                  df.to_csv(CSV_FILE, index=False)
+                  print("CSV Saved.")
 
           except Exception as e:
-              print(f"Error fetching data: {e}")
-              # 데이터 수집 실패시 기존 CSV라도 읽어서 HTML 갱신하도록 패스
+              print(f"Error: {e}")
               pass
 
-          # --- 2. CSV 저장 (수집 성공 시에만) ---
-          if found:
-              now = datetime.now()
-              today_str = now.strftime("%Y-%m-%d")
-              mbytes = round(kbytes / 1024, 2)
-
-              new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
-              
-              if os.path.exists(CSV_FILE):
-                  df = pd.read_csv(CSV_FILE)
-                  # 오늘 날짜 중복 제거 후 추가
-                  df = df[df['date'] != today_str]
-                  df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-              else:
-                  df = pd.DataFrame([new_data])
-              
+          # 2. HTML 생성 (데이터가 없어도 빈 껍데기는 생성하도록 수정)
+          if os.path.exists(CSV_FILE):
+              df = pd.read_csv(CSV_FILE)
               df['date'] = pd.to_datetime(df['date'])
-              df = df.sort_values('date')
-              df.to_csv(CSV_FILE, index=False)
-              print(f"Data saved: {today_str} - {mbytes} MB")
+              df['date_str'] = df['date'].dt.strftime('%Y-%m-%d')
+              df_desc = df.sort_values('date', ascending=False)
+              json_data = df_desc[['date_str', 'mbytes']].to_json(orient='records')
           else:
-              # 수집 실패했으면 기존 파일 읽기
-              if os.path.exists(CSV_FILE):
-                  df = pd.read_csv(CSV_FILE)
-                  df['date'] = pd.to_datetime(df['date'])
-              else:
-                  print("No data available.")
-                  exit(1)
+              json_data = "[]" # 데이터 없음
 
-          # --- 3. HTML 생성 (자바스크립트 포함) ---
-          # 데이터를 JSON 형태로 변환하여 HTML 내부에 심어줌
-          # 날짜를 문자열로 변환
-          df['date_str'] = df['date'].dt.strftime('%Y-%m-%d')
-          # 최신 데이터가 위로 오게 정렬 (표 보기 편하게)
-          df_desc = df.sort_values('date', ascending=False)
-          
-          # JSON 데이터 준비
-          json_data = df_desc[['date_str', 'mbytes']].to_json(orient='records')
-          
           update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
           html_content = f"""
@@ -124,125 +105,126 @@ jobs:
               <title>Lunamoth Traffic Dashboard</title>
               <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
               <style>
-                  body {{ font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; background-color: #f9f9f9; }}
-                  h1 {{ text-align: center; color: #2c3e50; }}
-                  .card {{ background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }}
-                  .controls {{ text-align: center; margin-bottom: 20px; }}
-                  select {{ padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }}
-                  .stat-box {{ text-align: center; font-size: 1.2em; font-weight: bold; color: #27ae60; margin: 10px 0; }}
+                  body {{ font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }}
+                  .card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }}
+                  h1 {{ text-align: center; color: #333; }}
+                  
+                  /* 선택기 스타일 강조 */
+                  .control-box {{ text-align: center; background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px solid #d2e3fc; }}
+                  select {{ padding: 8px 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }}
+                  
+                  .stat {{ text-align: center; font-size: 1.1em; font-weight: bold; color: #2e7d32; margin: 15px 0; }}
                   table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                  th, td {{ padding: 12px; border-bottom: 1px solid #eee; text-align: center; }}
+                  th, td {{ padding: 10px; border-bottom: 1px solid #eee; text-align: center; }}
                   th {{ background-color: #f8f9fa; }}
-                  tr:hover {{ background-color: #f1f1f1; }}
-                  .footer {{ text-align: center; color: #888; font-size: 0.8em; margin-top: 30px; }}
               </style>
           </head>
           <body>
               <h1>📊 트래픽 대시보드</h1>
               
-              <div class="card controls">
-                  <label for="monthSelect">📅 조회 월 선택: </label>
-                  <select id="monthSelect" onchange="updateDashboard()"></select>
+              <!-- 월 선택기 영역 -->
+              <div class="card control-box">
+                  <label for="monthSelect">📅 <b>조회할 월을 선택하세요:</b> </label>
+                  <select id="monthSelect" onchange="updateDashboard()">
+                      <option value="">데이터 로딩 중...</option>
+                  </select>
               </div>
 
+              <!-- 그래프 영역 -->
               <div class="card">
-                  <div class="stat-box" id="avgTraffic">평균 트래픽 계산 중...</div>
+                  <div class="stat" id="avgText">-</div>
                   <canvas id="trafficChart"></canvas>
               </div>
 
+              <!-- 표 영역 -->
               <div class="card">
-                  <h3>📝 일별 상세 내역</h3>
+                  <h3>📝 상세 내역</h3>
                   <table id="trafficTable">
-                      <thead>
-                          <tr><th>날짜</th><th>트래픽 (MB)</th></tr>
-                      </thead>
+                      <thead><tr><th>날짜</th><th>트래픽 (MB)</th></tr></thead>
                       <tbody></tbody>
                   </table>
               </div>
-
-              <div class="footer">Last Update: {update_time}</div>
+              
+              <div style="text-align:center; color:#999; font-size:12px;">Last Update: {update_time}</div>
 
               <script>
-                  // 파이썬에서 주입한 전체 데이터
-                  const rawData = {json_data};
+                  const rawData = {json_data}; // 파이썬 데이터 주입
                   let myChart = null;
 
                   function init() {{
-                      const monthSelect = document.getElementById('monthSelect');
-                      const months = new Set();
+                      const select = document.getElementById('monthSelect');
                       
-                      // 데이터에서 'YYYY-MM' 형식의 월 목록 추출
-                      rawData.forEach(row => {{
-                          months.add(row.date_str.substring(0, 7));
-                      }});
+                      // 1. 데이터가 비어있는지 확인
+                      if (!rawData || rawData.length === 0) {{
+                          select.innerHTML = '<option>데이터가 없습니다</option>';
+                          return;
+                      }}
 
-                      // 드롭다운 채우기
+                      // 2. 월 목록 추출 (중복제거)
+                      const months = new Set();
+                      rawData.forEach(d => months.add(d.date_str.substring(0, 7)));
                       const sortedMonths = Array.from(months).sort().reverse();
-                      sortedMonths.forEach(month => {{
-                          const option = document.createElement('option');
-                          option.value = month;
-                          option.text = month;
-                          monthSelect.appendChild(option);
+
+                      // 3. 선택기 채우기
+                      select.innerHTML = ''; // 로딩중 메시지 삭제
+                      sortedMonths.forEach(m => {{
+                          const opt = document.createElement('option');
+                          opt.value = m;
+                          opt.text = m;
+                          select.appendChild(opt);
                       }});
 
-                      // 기본값: 가장 최근 월
+                      // 4. 첫번째 월 자동 선택
                       if (sortedMonths.length > 0) {{
-                          monthSelect.value = sortedMonths[0];
+                          select.value = sortedMonths[0];
                           updateDashboard();
                       }}
                   }}
 
                   function updateDashboard() {{
-                      const selectedMonth = document.getElementById('monthSelect').value;
-                      const filteredData = rawData.filter(row => row.date_str.startsWith(selectedMonth));
-                      
-                      // 날짜 오름차순 정렬 (그래프용)
-                      const chartData = [...filteredData].sort((a, b) => a.date_str.localeCompare(b.date_str));
+                      const month = document.getElementById('monthSelect').value;
+                      // 해당 월 데이터만 필터링
+                      const data = rawData.filter(d => d.date_str.startsWith(month));
+                      // 그래프용은 날짜 오름차순 (1일 -> 31일)
+                      const chartData = [...data].sort((a,b) => a.date_str.localeCompare(b.date_str));
 
-                      // 1. 평균 계산
-                      let total = 0;
-                      chartData.forEach(d => total += d.mbytes);
-                      const avg = chartData.length ? (total / chartData.length).toFixed(2) : 0;
-                      document.getElementById('avgTraffic').innerHTML = `💡 ${{selectedMonth}} 일평균 트래픽: ${{avg}} MB`;
+                      // 통계 계산
+                      let sum = 0;
+                      chartData.forEach(d => sum += d.mbytes);
+                      const avg = (sum / chartData.length).toFixed(2);
+                      document.getElementById('avgText').innerText = `💡 ${{month}} 일평균: ${{avg}} MB`;
 
-                      // 2. 그래프 그리기
-                      const ctx = document.getElementById('trafficChart').getContext('2d');
-                      if (myChart) myChart.destroy(); // 기존 차트 삭제
-
-                      myChart = new Chart(ctx, {{
-                          type: 'line',
-                          data: {{
-                              labels: chartData.map(d => d.date_str.substring(8, 10) + '일'), // 일만 표시
-                              datasets: [{{
-                                  label: 'Traffic (MB)',
-                                  data: chartData.map(d => d.mbytes),
-                                  borderColor: '#3498db',
-                                  backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                                  borderWidth: 2,
-                                  fill: true,
-                                  tension: 0.1
-                              }}]
-                          }},
-                          options: {{
-                              responsive: true,
-                              scales: {{
-                                  y: {{ beginAtZero: true }}
-                              }}
-                          }}
-                      }});
-
-                      // 3. 표 채우기 (최신순)
+                      // 표 채우기 (최신순)
                       const tbody = document.querySelector('#trafficTable tbody');
                       tbody.innerHTML = '';
-                      // 표는 내림차순(최신 날짜 위로)이 보기 좋으므로 filteredData 그대로 사용 (이미 내림차순임)
-                      filteredData.forEach(row => {{
+                      data.forEach(row => {{
                           const tr = document.createElement('tr');
                           tr.innerHTML = `<td>${{row.date_str}}</td><td>${{row.mbytes}} MB</td>`;
                           tbody.appendChild(tr);
                       }});
+
+                      // 그래프 그리기
+                      const ctx = document.getElementById('trafficChart').getContext('2d');
+                      if (myChart) myChart.destroy();
+
+                      myChart = new Chart(ctx, {{
+                          type: 'line',
+                          data: {{
+                              labels: chartData.map(d => d.date_str.slice(8,10) + '일'),
+                              datasets: [{{
+                                  label: '사용량 (MB)',
+                                  data: chartData.map(d => d.mbytes),
+                                  borderColor: '#2196F3',
+                                  backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                  fill: true,
+                                  tension: 0.2
+                              }}]
+                          }},
+                          options: {{ responsive: true }}
+                      }});
                   }}
 
-                  // 실행
+                  // 시작
                   init();
               </script>
           </body>
@@ -251,13 +233,11 @@ jobs:
 
           with open(HTML_FILE, "w", encoding="utf-8") as f:
               f.write(html_content)
-          
-          print("HTML generation complete.")
 
       - name: Commit and Push
         run: |
           git config --global user.name "TrafficBot"
           git config --global user.email "bot@noreply.github.com"
           git add traffic_data.csv index.html
-          git commit -m "Update traffic dashboard: $(date +'%Y-%m-%d')" || exit 0
+          git commit -m "Update Dashboard" || exit 0
           git push
