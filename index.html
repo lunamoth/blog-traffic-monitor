@@ -31,7 +31,7 @@
     <div class="card">
         <div class="stat" id="avgText">-</div>
 
-        <!-- 추가된 요약 테이블 -->
+        <!-- 추가된 요약 테이블 (순서: 최고 -> 평균 -> 최저) -->
         <table style="margin-bottom: 20px; border: 1px solid #eee;">
             <thead>
                 <tr style="background-color: #f1f3f4;">
@@ -42,11 +42,6 @@
             </thead>
             <tbody>
                 <tr>
-                    <td style="color: blue;">📉 최저</td>
-                    <td id="minDate">-</td>
-                    <td id="minVal">-</td>
-                </tr>
-                <tr>
                     <td style="color: red;">📈 최고</td>
                     <td id="maxDate">-</td>
                     <td id="maxVal">-</td>
@@ -55,6 +50,11 @@
                     <td style="font-weight: bold;">💡 평균</td>
                     <td>-</td>
                     <td id="avgValTable">-</td>
+                </tr>
+                <tr>
+                    <td style="color: blue;">📉 최저</td>
+                    <td id="minDate">-</td>
+                    <td id="minVal">-</td>
                 </tr>
             </tbody>
         </table>
@@ -71,10 +71,10 @@
         </table>
     </div>
     
-    <div style="text-align:center; color:#999; font-size:12px;">Last Update: 2025-12-08 11:44:52</div>
+    <div style="text-align:center; color:#999; font-size:12px;">Last Update: 2025-12-08 11:55:56</div>
 
     <script>
-        const rawData = [{"date_str":"2025-12-08","mbytes":1468.44}]; 
+        const rawData = [{"date_str":"2025-12-08","mbytes":1505.41}]; 
         let myChart = null;
 
         function init() {
