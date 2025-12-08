@@ -1,0 +1,160 @@
+name: Traffic Monitor
+
+on:
+  schedule:
+    # 한국 시간 매일 오후 11시 59분 (UTC 14:59) 실행
+    - cron: '59 14 * * *'
+  workflow_dispatch: # 수동 실행 버튼 활성화
+
+permissions:
+  contents: write
+
+jobs:
+  update-traffic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 pandas matplotlib
+
+      - name: Run Traffic Script
+        shell: python
+        run: |
+          import requests
+          from bs4 import BeautifulSoup
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import base64
+          from io import BytesIO
+          from datetime import datetime
+          import os
+
+          # --- 1. 데이터 가져오기 ---
+          URL = "http://lunamoth.com/throttle-me"
+          CSV_FILE = "traffic_data.csv"
+          HTML_FILE = "index.html"
+          
+          try:
+              print(f"Connecting to {URL}...")
+              response = requests.get(URL, timeout=30)
+              response.raise_for_status()
+              soup = BeautifulSoup(response.text, 'html.parser')
+              
+              # lunamoth.biz 행 찾아서 데이터 뽑기
+              rows = soup.find_all('tr')
+              kbytes = 0
+              found = False
+              
+              for row in rows:
+                  if "lunamoth.biz" in row.text:
+                      cols = [ele.text.strip() for ele in row.find_all(['td', 'th'])]
+                      # 데이터 순서상 6번째(인덱스 5)가 KBytes sent
+                      if len(cols) > 5:
+                          kbytes = int(cols[5])
+                          found = True
+                          break
+              
+              if not found:
+                  print("Error: Could not find traffic data in HTML.")
+                  exit(1)
+
+          except Exception as e:
+              print(f"Error fetching data: {e}")
+              exit(1)
+
+          # --- 2. 데이터 저장 (CSV) ---
+          now = datetime.now()
+          today_str = now.strftime("%Y-%m-%d")
+          mbytes = round(kbytes / 1024, 2) # MB 단위 변환
+
+          new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
+          
+          if os.path.exists(CSV_FILE):
+              df = pd.read_csv(CSV_FILE)
+              # 오늘 날짜 데이터가 이미 있으면 덮어쓰기 위해 삭제 후 추가
+              df = df[df['date'] != today_str]
+              df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+          else:
+              df = pd.DataFrame([new_data])
+          
+          df['date'] = pd.to_datetime(df['date'])
+          df = df.sort_values('date')
+          df.to_csv(CSV_FILE, index=False)
+          print(f"Data saved: {today_str} - {mbytes} MB")
+
+          # --- 3. 그래프 그리기 (이미지 파일 생성 안 하고 HTML에 바로 넣기) ---
+          plt.figure(figsize=(10, 5))
+          plt.plot(df['date'], df['mbytes'], marker='o', linestyle='-', color='#4CAF50')
+          plt.title('Daily Traffic (MB)')
+          plt.xlabel('Date')
+          plt.ylabel('MB')
+          plt.grid(True, linestyle='--', alpha=0.7)
+          plt.gcf().autofmt_xdate()
+          
+          img_buffer = BytesIO()
+          plt.savefig(img_buffer, format='png')
+          img_buffer.seek(0)
+          img_base64 = base64.b64encode(img_buffer.read()).decode('utf-8')
+          plt.close()
+
+          # --- 4. 통계 계산 (월별) ---
+          df['ym'] = df['date'].dt.strftime('%Y년 %m월')
+          monthly = df.groupby('ym')['mbytes'].mean().round(2).reset_index().sort_values('ym', ascending=False)
+
+          # --- 5. HTML 리포트 생성 ---
+          html = f"""
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="utf-8">
+              <title>Lunamoth Traffic Report</title>
+              <style>
+                  body {{ font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }}
+                  h1 {{ border-bottom: 2px solid #eee; padding-bottom: 10px; }}
+                  table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                  th, td {{ border: 1px solid #ddd; padding: 10px; text-align: center; }}
+                  th {{ background-color: #f8f9fa; }}
+                  .graph {{ text-align: center; margin: 30px 0; border: 1px solid #eee; padding: 10px; border-radius: 8px; }}
+                  img {{ max-width: 100%; height: auto; }}
+              </style>
+          </head>
+          <body>
+              <h1>📊 일일 트래픽 리포트</h1>
+              <p>마지막 업데이트: {now.strftime('%Y-%m-%d %H:%M:%S')} (UTC)</p>
+
+              <div class="graph">
+                  <img src="data:image/png;base64,{img_base64}" alt="Traffic Graph">
+              </div>
+
+              <h3>📅 월별 평균 트래픽</h3>
+              <table>
+                  <tr><th>연도-월</th><th>평균 트래픽 (MB)</th></tr>
+                  {''.join(f"<tr><td>{r['ym']}</td><td>{r['mbytes']} MB</td></tr>" for _, r in monthly.iterrows())}
+              </table>
+
+              <h3>📝 최근 일별 기록 (7일)</h3>
+              <table>
+                  <tr><th>날짜</th><th>트래픽 (MB)</th></tr>
+                  {''.join(f"<tr><td>{r['date'].strftime('%Y-%m-%d')}</td><td>{r['mbytes']} MB</td></tr>" for _, r in df.sort_values('date', ascending=False).head(7).iterrows())}
+              </table>
+          </body>
+          </html>
+          """
+
+          with open(HTML_FILE, "w", encoding="utf-8") as f:
+              f.write(html)
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "TrafficBot"
+          git config --global user.email "bot@noreply.github.com"
+          git add traffic_data.csv index.html
+          git commit -m "Update traffic: $(date +'%Y-%m-%d')" || exit 0
+          git push
