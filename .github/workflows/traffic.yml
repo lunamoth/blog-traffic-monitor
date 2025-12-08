@@ -39,7 +39,7 @@ jobs:
           HTML_FILE = "index.html"
           
           # 봇 차단 방지용 헤더
-          headers = {'User-Agent': 'Mozilla/5.0'}
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
           # 1. 데이터 수집
           try:
@@ -54,7 +54,6 @@ jobs:
               for row in rows:
                   if "lunamoth.biz" in row.text:
                       cols = [ele.text.strip() for ele in row.find_all(['td', 'th'])]
-                      # 6번째 데이터 (인덱스 5)
                       if len(cols) > 5:
                           kbytes = int(cols[5])
                           found = True
@@ -70,7 +69,7 @@ jobs:
                   
                   if os.path.exists(CSV_FILE):
                       df = pd.read_csv(CSV_FILE)
-                      df = df[df['date'] != today_str] # 중복 제거
+                      df = df[df['date'] != today_str]
                       df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                   else:
                       df = pd.DataFrame([new_data])
@@ -79,24 +78,27 @@ jobs:
                   df = df.sort_values('date')
                   df.to_csv(CSV_FILE, index=False)
                   print("CSV Saved.")
+              else:
+                  print("Data not found in HTML.")
 
           except Exception as e:
               print(f"Error: {e}")
               pass
 
-          # 2. HTML 생성 (데이터가 없어도 빈 껍데기는 생성하도록 수정)
+          # 2. HTML 생성 (Safe Method)
+          # 데이터 준비
+          json_str = "[]"
           if os.path.exists(CSV_FILE):
               df = pd.read_csv(CSV_FILE)
               df['date'] = pd.to_datetime(df['date'])
               df['date_str'] = df['date'].dt.strftime('%Y-%m-%d')
               df_desc = df.sort_values('date', ascending=False)
-              json_data = df_desc[['date_str', 'mbytes']].to_json(orient='records')
-          else:
-              json_data = "[]" # 데이터 없음
+              json_str = df_desc[['date_str', 'mbytes']].to_json(orient='records')
 
           update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-          html_content = f"""
+          # HTML 템플릿 (Python f-string을 쓰지 않고 replace를 사용하여 충돌 방지)
+          html_template = """
           <!DOCTYPE html>
           <html lang="ko">
           <head>
@@ -105,24 +107,20 @@ jobs:
               <title>Lunamoth Traffic Dashboard</title>
               <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
               <style>
-                  body {{ font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }}
-                  .card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }}
-                  h1 {{ text-align: center; color: #333; }}
-                  
-                  /* 선택기 스타일 강조 */
-                  .control-box {{ text-align: center; background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px solid #d2e3fc; }}
-                  select {{ padding: 8px 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }}
-                  
-                  .stat {{ text-align: center; font-size: 1.1em; font-weight: bold; color: #2e7d32; margin: 15px 0; }}
-                  table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                  th, td {{ padding: 10px; border-bottom: 1px solid #eee; text-align: center; }}
-                  th {{ background-color: #f8f9fa; }}
+                  body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; color: #333; }
+                  .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+                  h1 { text-align: center; }
+                  .control-box { text-align: center; background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px solid #d2e3fc; }
+                  select { padding: 8px 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+                  .stat { text-align: center; font-size: 1.1em; font-weight: bold; color: #2e7d32; margin: 15px 0; }
+                  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                  th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+                  th { background-color: #f8f9fa; }
               </style>
           </head>
           <body>
               <h1>📊 트래픽 대시보드</h1>
               
-              <!-- 월 선택기 영역 -->
               <div class="card control-box">
                   <label for="monthSelect">📅 <b>조회할 월을 선택하세요:</b> </label>
                   <select id="monthSelect" onchange="updateDashboard()">
@@ -130,13 +128,11 @@ jobs:
                   </select>
               </div>
 
-              <!-- 그래프 영역 -->
               <div class="card">
                   <div class="stat" id="avgText">-</div>
                   <canvas id="trafficChart"></canvas>
               </div>
 
-              <!-- 표 영역 -->
               <div class="card">
                   <h3>📝 상세 내역</h3>
                   <table id="trafficTable">
@@ -145,94 +141,90 @@ jobs:
                   </table>
               </div>
               
-              <div style="text-align:center; color:#999; font-size:12px;">Last Update: {update_time}</div>
+              <div style="text-align:center; color:#999; font-size:12px;">Last Update: __UPDATE_TIME__</div>
 
               <script>
-                  const rawData = {json_data}; // 파이썬 데이터 주입
+                  const rawData = __JSON_DATA__; 
                   let myChart = null;
 
-                  function init() {{
+                  function init() {
                       const select = document.getElementById('monthSelect');
                       
-                      // 1. 데이터가 비어있는지 확인
-                      if (!rawData || rawData.length === 0) {{
+                      if (!rawData || rawData.length === 0) {
                           select.innerHTML = '<option>데이터가 없습니다</option>';
                           return;
-                      }}
+                      }
 
-                      // 2. 월 목록 추출 (중복제거)
                       const months = new Set();
                       rawData.forEach(d => months.add(d.date_str.substring(0, 7)));
                       const sortedMonths = Array.from(months).sort().reverse();
 
-                      // 3. 선택기 채우기
-                      select.innerHTML = ''; // 로딩중 메시지 삭제
-                      sortedMonths.forEach(m => {{
+                      select.innerHTML = '';
+                      sortedMonths.forEach(m => {
                           const opt = document.createElement('option');
                           opt.value = m;
                           opt.text = m;
                           select.appendChild(opt);
-                      }});
+                      });
 
-                      // 4. 첫번째 월 자동 선택
-                      if (sortedMonths.length > 0) {{
+                      if (sortedMonths.length > 0) {
                           select.value = sortedMonths[0];
                           updateDashboard();
-                      }}
-                  }}
+                      }
+                  }
 
-                  function updateDashboard() {{
+                  function updateDashboard() {
                       const month = document.getElementById('monthSelect').value;
-                      // 해당 월 데이터만 필터링
                       const data = rawData.filter(d => d.date_str.startsWith(month));
-                      // 그래프용은 날짜 오름차순 (1일 -> 31일)
                       const chartData = [...data].sort((a,b) => a.date_str.localeCompare(b.date_str));
 
-                      // 통계 계산
                       let sum = 0;
                       chartData.forEach(d => sum += d.mbytes);
-                      const avg = (sum / chartData.length).toFixed(2);
-                      document.getElementById('avgText').innerText = `💡 ${{month}} 일평균: ${{avg}} MB`;
+                      const avg = chartData.length ? (sum / chartData.length).toFixed(2) : 0;
+                      
+                      // 자바스크립트 템플릿 리터럴 사용 (안전함)
+                      document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
 
-                      // 표 채우기 (최신순)
                       const tbody = document.querySelector('#trafficTable tbody');
                       tbody.innerHTML = '';
-                      data.forEach(row => {{
+                      data.forEach(row => {
                           const tr = document.createElement('tr');
-                          tr.innerHTML = `<td>${{row.date_str}}</td><td>${{row.mbytes}} MB</td>`;
+                          tr.innerHTML = `<td>${row.date_str}</td><td>${row.mbytes} MB</td>`;
                           tbody.appendChild(tr);
-                      }});
+                      });
 
-                      // 그래프 그리기
                       const ctx = document.getElementById('trafficChart').getContext('2d');
                       if (myChart) myChart.destroy();
 
-                      myChart = new Chart(ctx, {{
+                      myChart = new Chart(ctx, {
                           type: 'line',
-                          data: {{
+                          data: {
                               labels: chartData.map(d => d.date_str.slice(8,10) + '일'),
-                              datasets: [{{
+                              datasets: [{
                                   label: '사용량 (MB)',
                                   data: chartData.map(d => d.mbytes),
                                   borderColor: '#2196F3',
                                   backgroundColor: 'rgba(33, 150, 243, 0.1)',
                                   fill: true,
                                   tension: 0.2
-                              }}]
-                          }},
-                          options: {{ responsive: true }}
-                      }});
-                  }}
+                              }]
+                          },
+                          options: { responsive: true }
+                      });
+                  }
 
-                  // 시작
                   init();
               </script>
           </body>
           </html>
           """
 
+          # 텍스트 치환 방식으로 데이터 주입 (가장 안전한 방법)
+          final_html = html_template.replace("__JSON_DATA__", json_str)
+          final_html = final_html.replace("__UPDATE_TIME__", update_time)
+
           with open(HTML_FILE, "w", encoding="utf-8") as f:
-              f.write(html_content)
+              f.write(final_html)
 
       - name: Commit and Push
         run: |
