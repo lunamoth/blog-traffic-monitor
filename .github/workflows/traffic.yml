@@ -130,6 +130,36 @@ jobs:
 
               <div class="card">
                   <div class="stat" id="avgText">-</div>
+
+                  <!-- 추가된 요약 테이블 -->
+                  <table style="margin-bottom: 20px; border: 1px solid #eee;">
+                      <thead>
+                          <tr style="background-color: #f1f3f4;">
+                              <th>구분</th>
+                              <th>일자</th>
+                              <th>트래픽 (MB)</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td style="color: blue;">📉 최저</td>
+                              <td id="minDate">-</td>
+                              <td id="minVal">-</td>
+                          </tr>
+                          <tr>
+                              <td style="color: red;">📈 최고</td>
+                              <td id="maxDate">-</td>
+                              <td id="maxVal">-</td>
+                          </tr>
+                          <tr>
+                              <td style="font-weight: bold;">💡 평균</td>
+                              <td>-</td>
+                              <td id="avgValTable">-</td>
+                          </tr>
+                      </tbody>
+                  </table>
+                  <!-- 추가된 요약 테이블 끝 -->
+
                   <canvas id="trafficChart"></canvas>
               </div>
 
@@ -184,6 +214,29 @@ jobs:
                       
                       // 자바스크립트 템플릿 리터럴 사용 (안전함)
                       document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
+                      
+                      // --- 추가된 로직: 최저/최고/평균 별도 표기 ---
+                      if (chartData.length > 0) {
+                          // 최저값 찾기
+                          const minRow = chartData.reduce((prev, curr) => prev.mbytes < curr.mbytes ? prev : curr);
+                          // 최고값 찾기
+                          const maxRow = chartData.reduce((prev, curr) => prev.mbytes > curr.mbytes ? prev : curr);
+
+                          document.getElementById('minDate').innerText = minRow.date_str;
+                          document.getElementById('minVal').innerText = minRow.mbytes;
+                          
+                          document.getElementById('maxDate').innerText = maxRow.date_str;
+                          document.getElementById('maxVal').innerText = maxRow.mbytes;
+
+                          document.getElementById('avgValTable').innerText = avg;
+                      } else {
+                          document.getElementById('minDate').innerText = "-";
+                          document.getElementById('minVal').innerText = "-";
+                          document.getElementById('maxDate').innerText = "-";
+                          document.getElementById('maxVal').innerText = "-";
+                          document.getElementById('avgValTable').innerText = "-";
+                      }
+                      // --- 추가된 로직 끝 ---
 
                       const tbody = document.querySelector('#trafficTable tbody');
                       tbody.innerHTML = '';
