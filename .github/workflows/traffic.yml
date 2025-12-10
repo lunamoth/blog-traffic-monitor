@@ -131,7 +131,7 @@ jobs:
               <div class="card">
                   <div class="stat" id="avgText">-</div>
 
-                  <!-- 추가된 요약 테이블 (순서: 최고 -> 평균 -> 최저) -->
+                  <!-- 추가된 요약 테이블 (순서: 최고 -> 평균 -> 중간 -> 최저) -->
                   <table style="margin-bottom: 20px; border: 1px solid #eee;">
                       <thead>
                           <tr style="background-color: #f1f3f4;">
@@ -150,6 +150,11 @@ jobs:
                               <td style="font-weight: bold;">💡 평균</td>
                               <td>-</td>
                               <td id="avgValTable">-</td>
+                          </tr>
+                          <tr>
+                              <td style="color: purple;">🔹 중간</td>
+                              <td>-</td>
+                              <td id="medianVal">-</td>
                           </tr>
                           <tr>
                               <td style="color: blue;">📉 최저</td>
@@ -215,12 +220,22 @@ jobs:
                       // 자바스크립트 템플릿 리터럴 사용 (안전함)
                       document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
                       
-                      // --- 추가된 로직: 최저/최고/평균 별도 표기 ---
+                      // --- 추가된 로직: 최저/최고/평균/중간 별도 표기 ---
                       if (chartData.length > 0) {
                           // 최저값 찾기
                           const minRow = chartData.reduce((prev, curr) => prev.mbytes < curr.mbytes ? prev : curr);
                           // 최고값 찾기
                           const maxRow = chartData.reduce((prev, curr) => prev.mbytes > curr.mbytes ? prev : curr);
+
+                          // 중간값 계산
+                          const sortedMbytes = chartData.map(d => d.mbytes).sort((a, b) => a - b);
+                          const mid = Math.floor(sortedMbytes.length / 2);
+                          let median = 0;
+                          if (sortedMbytes.length % 2 !== 0) {
+                              median = sortedMbytes[mid];
+                          } else {
+                              median = ((sortedMbytes[mid - 1] + sortedMbytes[mid]) / 2).toFixed(2);
+                          }
 
                           document.getElementById('minDate').innerText = minRow.date_str;
                           document.getElementById('minVal').innerText = minRow.mbytes;
@@ -229,12 +244,14 @@ jobs:
                           document.getElementById('maxVal').innerText = maxRow.mbytes;
 
                           document.getElementById('avgValTable').innerText = avg;
+                          document.getElementById('medianVal').innerText = median;
                       } else {
                           document.getElementById('minDate').innerText = "-";
                           document.getElementById('minVal').innerText = "-";
                           document.getElementById('maxDate').innerText = "-";
                           document.getElementById('maxVal').innerText = "-";
                           document.getElementById('avgValTable').innerText = "-";
+                          document.getElementById('medianVal').innerText = "-";
                       }
                       // --- 추가된 로직 끝 ---
 
