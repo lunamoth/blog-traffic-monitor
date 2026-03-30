@@ -38,7 +38,6 @@ jobs:
           CSV_FILE = "traffic_data.csv"
           HTML_FILE = "index.html"
           
-          # 봇 차단 방지용 헤더
           headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
           # 1. 데이터 수집
@@ -63,7 +62,8 @@ jobs:
                   # CSV 저장
                   now = datetime.now()
                   today_str = now.strftime("%Y-%m-%d")
-                  mbytes = round(kbytes / 1024, 2)
+                  # 소수점 없이 반올림하여 정수로 저장 (round 0)
+                  mbytes = int(round(kbytes / 1024, 0))
                   
                   new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
                   
@@ -75,6 +75,8 @@ jobs:
                       df = pd.DataFrame([new_data])
                   
                   df['date'] = pd.to_datetime(df['date'])
+                  # 모든 데이터를 정수형으로 변환
+                  df['mbytes'] = df['mbytes'].round(0).astype(int)
                   df = df.sort_values('date')
                   df.to_csv(CSV_FILE, index=False)
                   print("CSV Saved.")
@@ -85,19 +87,18 @@ jobs:
               print(f"Error: {e}")
               pass
 
-          # 2. HTML 생성 (Safe Method)
-          # 데이터 준비
+          # 2. HTML 생성
           json_str = "[]"
           if os.path.exists(CSV_FILE):
               df = pd.read_csv(CSV_FILE)
               df['date'] = pd.to_datetime(df['date'])
               df['date_str'] = df['date'].dt.strftime('%Y-%m-%d')
+              df['mbytes'] = df['mbytes'].round(0).astype(int) # 정수 보장
               df_desc = df.sort_values('date', ascending=False)
               json_str = df_desc[['date_str', 'mbytes']].to_json(orient='records')
 
           update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-          # HTML 템플릿 (Python f-string을 쓰지 않고 replace를 사용하여 충돌 방지)
           html_template = """
           <!DOCTYPE html>
           <html lang="ko">
@@ -131,7 +132,6 @@ jobs:
               <div class="card">
                   <div class="stat" id="avgText">-</div>
 
-                  <!-- 추가된 요약 테이블 (순서: 최고 -> 평균 -> 중간 -> 최저) -->
                   <table style="margin-bottom: 20px; border: 1px solid #eee;">
                       <thead>
                           <tr style="background-color: #f1f3f4;">
@@ -163,7 +163,6 @@ jobs:
                           </tr>
                       </tbody>
                   </table>
-                  <!-- 추가된 요약 테이블 끝 -->
 
                   <canvas id="trafficChart"></canvas>
               </div>
@@ -184,16 +183,13 @@ jobs:
 
                   function init() {
                       const select = document.getElementById('monthSelect');
-                      
                       if (!rawData || rawData.length === 0) {
                           select.innerHTML = '<option>데이터가 없습니다</option>';
                           return;
                       }
-
                       const months = new Set();
                       rawData.forEach(d => months.add(d.date_str.substring(0, 7)));
                       const sortedMonths = Array.from(months).sort().reverse();
-
                       select.innerHTML = '';
                       sortedMonths.forEach(m => {
                           const opt = document.createElement('option');
@@ -201,7 +197,6 @@ jobs:
                           opt.text = m;
                           select.appendChild(opt);
                       });
-
                       if (sortedMonths.length > 0) {
                           select.value = sortedMonths[0];
                           updateDashboard();
@@ -215,45 +210,31 @@ jobs:
 
                       let sum = 0;
                       chartData.forEach(d => sum += d.mbytes);
-                      const avg = chartData.length ? (sum / chartData.length).toFixed(2) : 0;
+                      // 평균값 소수점 없이 정수로 (toFixed(0))
+                      const avg = chartData.length ? (sum / chartData.length).toFixed(0) : 0;
                       
-                      // 자바스크립트 템플릿 리터럴 사용 (안전함)
                       document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
                       
-                      // --- 추가된 로직: 최저/최고/평균/중간 별도 표기 ---
                       if (chartData.length > 0) {
-                          // 최저값 찾기
                           const minRow = chartData.reduce((prev, curr) => prev.mbytes < curr.mbytes ? prev : curr);
-                          // 최고값 찾기
                           const maxRow = chartData.reduce((prev, curr) => prev.mbytes > curr.mbytes ? prev : curr);
-
-                          // 중간값 계산
                           const sortedMbytes = chartData.map(d => d.mbytes).sort((a, b) => a - b);
                           const mid = Math.floor(sortedMbytes.length / 2);
                           let median = 0;
                           if (sortedMbytes.length % 2 !== 0) {
                               median = sortedMbytes[mid];
                           } else {
-                              median = ((sortedMbytes[mid - 1] + sortedMbytes[mid]) / 2).toFixed(2);
+                              // 중간값 소수점 없이 정수로 (toFixed(0))
+                              median = ((sortedMbytes[mid - 1] + sortedMbytes[mid]) / 2).toFixed(0);
                           }
 
                           document.getElementById('minDate').innerText = minRow.date_str;
                           document.getElementById('minVal').innerText = minRow.mbytes;
-                          
                           document.getElementById('maxDate').innerText = maxRow.date_str;
                           document.getElementById('maxVal').innerText = maxRow.mbytes;
-
                           document.getElementById('avgValTable').innerText = avg;
                           document.getElementById('medianVal').innerText = median;
-                      } else {
-                          document.getElementById('minDate').innerText = "-";
-                          document.getElementById('minVal').innerText = "-";
-                          document.getElementById('maxDate').innerText = "-";
-                          document.getElementById('maxVal').innerText = "-";
-                          document.getElementById('avgValTable').innerText = "-";
-                          document.getElementById('medianVal').innerText = "-";
                       }
-                      // --- 추가된 로직 끝 ---
 
                       const tbody = document.querySelector('#trafficTable tbody');
                       tbody.innerHTML = '';
@@ -265,7 +246,6 @@ jobs:
 
                       const ctx = document.getElementById('trafficChart').getContext('2d');
                       if (myChart) myChart.destroy();
-
                       myChart = new Chart(ctx, {
                           type: 'line',
                           data: {
@@ -282,14 +262,12 @@ jobs:
                           options: { responsive: true }
                       });
                   }
-
                   init();
               </script>
           </body>
           </html>
           """
 
-          # 텍스트 치환 방식으로 데이터 주입 (가장 안전한 방법)
           final_html = html_template.replace("__JSON_DATA__", json_str)
           final_html = final_html.replace("__UPDATE_TIME__", update_time)
 
@@ -301,5 +279,5 @@ jobs:
           git config --global user.name "TrafficBot"
           git config --global user.email "bot@noreply.github.com"
           git add traffic_data.csv index.html
-          git commit -m "Update Dashboard" || exit 0
+          git commit -m "Update Dashboard (Integer only)" || exit 0
           git push
