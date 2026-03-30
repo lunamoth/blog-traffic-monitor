@@ -31,7 +31,6 @@
     <div class="card">
         <div class="stat" id="avgText">-</div>
 
-        <!-- 추가된 요약 테이블 (순서: 최고 -> 평균 -> 중간 -> 최저) -->
         <table style="margin-bottom: 20px; border: 1px solid #eee;">
             <thead>
                 <tr style="background-color: #f1f3f4;">
@@ -63,7 +62,6 @@
                 </tr>
             </tbody>
         </table>
-        <!-- 추가된 요약 테이블 끝 -->
 
         <canvas id="trafficChart"></canvas>
     </div>
@@ -76,24 +74,21 @@
         </table>
     </div>
     
-    <div style="text-align:center; color:#999; font-size:12px;">Last Update: 2026-03-29 13:47:43</div>
+    <div style="text-align:center; color:#999; font-size:12px;">Last Update: 2026-03-30 14:23:44</div>
 
     <script>
-        const rawData = [{"date_str":"2026-03-29","mbytes":1047.82},{"date_str":"2026-03-28","mbytes":1310.93},{"date_str":"2026-03-27","mbytes":1151.96},{"date_str":"2026-03-26","mbytes":1548.92},{"date_str":"2026-03-25","mbytes":1441.96},{"date_str":"2026-03-24","mbytes":1474.2},{"date_str":"2026-03-23","mbytes":1380.49},{"date_str":"2026-03-22","mbytes":1404.14},{"date_str":"2026-03-21","mbytes":1080.19},{"date_str":"2026-03-20","mbytes":1078.85},{"date_str":"2026-03-19","mbytes":1014.05},{"date_str":"2026-03-18","mbytes":1132.5},{"date_str":"2026-03-17","mbytes":1065.8},{"date_str":"2026-03-16","mbytes":1023.58},{"date_str":"2026-03-15","mbytes":916.56},{"date_str":"2026-03-14","mbytes":1065.6},{"date_str":"2026-03-13","mbytes":833.31},{"date_str":"2026-03-12","mbytes":977.96},{"date_str":"2026-03-11","mbytes":921.44},{"date_str":"2026-03-10","mbytes":950.92},{"date_str":"2026-03-09","mbytes":1179.32},{"date_str":"2026-03-08","mbytes":989.14},{"date_str":"2026-03-07","mbytes":1224.5},{"date_str":"2026-03-06","mbytes":1298.82},{"date_str":"2026-03-05","mbytes":1292.23},{"date_str":"2026-03-04","mbytes":951.9},{"date_str":"2026-03-03","mbytes":1107.75},{"date_str":"2026-03-02","mbytes":956.31},{"date_str":"2026-03-01","mbytes":971.6},{"date_str":"2026-02-28","mbytes":1169.59},{"date_str":"2026-02-27","mbytes":1217.2},{"date_str":"2026-02-26","mbytes":1228.11},{"date_str":"2026-02-25","mbytes":1181.2},{"date_str":"2026-02-24","mbytes":1727.63},{"date_str":"2026-02-23","mbytes":1341.06},{"date_str":"2026-02-22","mbytes":1265.41},{"date_str":"2026-02-21","mbytes":1358.15},{"date_str":"2026-02-20","mbytes":1314.43},{"date_str":"2026-02-19","mbytes":1440.3},{"date_str":"2026-02-18","mbytes":1391.03},{"date_str":"2026-02-17","mbytes":1404.84},{"date_str":"2026-02-16","mbytes":1347.1},{"date_str":"2026-02-15","mbytes":1167.63},{"date_str":"2026-02-14","mbytes":1452.01},{"date_str":"2026-02-13","mbytes":1351.46},{"date_str":"2026-02-12","mbytes":1364.88},{"date_str":"2026-02-11","mbytes":1178.33},{"date_str":"2026-02-10","mbytes":1350.52},{"date_str":"2026-02-09","mbytes":1222.07},{"date_str":"2026-02-08","mbytes":1398.23},{"date_str":"2026-02-07","mbytes":971.78},{"date_str":"2026-02-06","mbytes":1246.88},{"date_str":"2026-02-05","mbytes":926.37},{"date_str":"2026-02-04","mbytes":2915.08},{"date_str":"2026-02-03","mbytes":1423.97},{"date_str":"2026-02-02","mbytes":999.51},{"date_str":"2026-02-01","mbytes":1424.03},{"date_str":"2026-01-31","mbytes":1656.89},{"date_str":"2026-01-30","mbytes":1312.51},{"date_str":"2026-01-29","mbytes":1322.02},{"date_str":"2026-01-28","mbytes":1279.83},{"date_str":"2026-01-27","mbytes":1512.12},{"date_str":"2026-01-26","mbytes":0.0},{"date_str":"2026-01-25","mbytes":1274.05},{"date_str":"2026-01-24","mbytes":1560.49},{"date_str":"2026-01-23","mbytes":1196.41},{"date_str":"2026-01-22","mbytes":0.9},{"date_str":"2026-01-21","mbytes":0.42},{"date_str":"2026-01-20","mbytes":0.28},{"date_str":"2026-01-19","mbytes":1394.96},{"date_str":"2026-01-18","mbytes":1197.31},{"date_str":"2026-01-17","mbytes":1165.32},{"date_str":"2026-01-16","mbytes":1275.88},{"date_str":"2026-01-15","mbytes":1245.03},{"date_str":"2026-01-14","mbytes":2309.6},{"date_str":"2026-01-13","mbytes":1891.83},{"date_str":"2026-01-12","mbytes":1889.5},{"date_str":"2026-01-11","mbytes":1711.82},{"date_str":"2026-01-10","mbytes":1470.19},{"date_str":"2026-01-09","mbytes":1362.0},{"date_str":"2026-01-08","mbytes":1181.27},{"date_str":"2026-01-07","mbytes":1075.79},{"date_str":"2026-01-06","mbytes":1021.1},{"date_str":"2026-01-05","mbytes":1374.0},{"date_str":"2026-01-04","mbytes":1701.98},{"date_str":"2026-01-03","mbytes":1438.44},{"date_str":"2026-01-02","mbytes":1333.29},{"date_str":"2026-01-01","mbytes":1587.51},{"date_str":"2025-12-31","mbytes":1460.25},{"date_str":"2025-12-30","mbytes":1329.35},{"date_str":"2025-12-29","mbytes":1408.42},{"date_str":"2025-12-28","mbytes":1247.97},{"date_str":"2025-12-27","mbytes":1419.31},{"date_str":"2025-12-26","mbytes":1668.56},{"date_str":"2025-12-25","mbytes":1624.38},{"date_str":"2025-12-24","mbytes":2982.85},{"date_str":"2025-12-23","mbytes":1416.89},{"date_str":"2025-12-22","mbytes":1667.68},{"date_str":"2025-12-21","mbytes":2320.88},{"date_str":"2025-12-20","mbytes":1465.52},{"date_str":"2025-12-19","mbytes":2032.66},{"date_str":"2025-12-18","mbytes":1683.01},{"date_str":"2025-12-17","mbytes":1765.69},{"date_str":"2025-12-16","mbytes":1648.01},{"date_str":"2025-12-15","mbytes":1575.45},{"date_str":"2025-12-14","mbytes":1606.62},{"date_str":"2025-12-13","mbytes":1566.78},{"date_str":"2025-12-12","mbytes":1791.4},{"date_str":"2025-12-11","mbytes":1750.66},{"date_str":"2025-12-10","mbytes":1462.21},{"date_str":"2025-12-09","mbytes":24.92},{"date_str":"2025-12-08","mbytes":1632.29}]; 
+        const rawData = [{"date_str":"2026-03-30","mbytes":1430},{"date_str":"2026-03-29","mbytes":1048},{"date_str":"2026-03-28","mbytes":1311},{"date_str":"2026-03-27","mbytes":1152},{"date_str":"2026-03-26","mbytes":1549},{"date_str":"2026-03-25","mbytes":1442},{"date_str":"2026-03-24","mbytes":1474},{"date_str":"2026-03-23","mbytes":1380},{"date_str":"2026-03-22","mbytes":1404},{"date_str":"2026-03-21","mbytes":1080},{"date_str":"2026-03-20","mbytes":1079},{"date_str":"2026-03-19","mbytes":1014},{"date_str":"2026-03-18","mbytes":1132},{"date_str":"2026-03-17","mbytes":1066},{"date_str":"2026-03-16","mbytes":1024},{"date_str":"2026-03-15","mbytes":917},{"date_str":"2026-03-14","mbytes":1066},{"date_str":"2026-03-13","mbytes":833},{"date_str":"2026-03-12","mbytes":978},{"date_str":"2026-03-11","mbytes":921},{"date_str":"2026-03-10","mbytes":951},{"date_str":"2026-03-09","mbytes":1179},{"date_str":"2026-03-08","mbytes":989},{"date_str":"2026-03-07","mbytes":1224},{"date_str":"2026-03-06","mbytes":1299},{"date_str":"2026-03-05","mbytes":1292},{"date_str":"2026-03-04","mbytes":952},{"date_str":"2026-03-03","mbytes":1108},{"date_str":"2026-03-02","mbytes":956},{"date_str":"2026-03-01","mbytes":972},{"date_str":"2026-02-28","mbytes":1170},{"date_str":"2026-02-27","mbytes":1217},{"date_str":"2026-02-26","mbytes":1228},{"date_str":"2026-02-25","mbytes":1181},{"date_str":"2026-02-24","mbytes":1728},{"date_str":"2026-02-23","mbytes":1341},{"date_str":"2026-02-22","mbytes":1265},{"date_str":"2026-02-21","mbytes":1358},{"date_str":"2026-02-20","mbytes":1314},{"date_str":"2026-02-19","mbytes":1440},{"date_str":"2026-02-18","mbytes":1391},{"date_str":"2026-02-17","mbytes":1405},{"date_str":"2026-02-16","mbytes":1347},{"date_str":"2026-02-15","mbytes":1168},{"date_str":"2026-02-14","mbytes":1452},{"date_str":"2026-02-13","mbytes":1351},{"date_str":"2026-02-12","mbytes":1365},{"date_str":"2026-02-11","mbytes":1178},{"date_str":"2026-02-10","mbytes":1351},{"date_str":"2026-02-09","mbytes":1222},{"date_str":"2026-02-08","mbytes":1398},{"date_str":"2026-02-07","mbytes":972},{"date_str":"2026-02-06","mbytes":1247},{"date_str":"2026-02-05","mbytes":926},{"date_str":"2026-02-04","mbytes":2915},{"date_str":"2026-02-03","mbytes":1424},{"date_str":"2026-02-02","mbytes":1000},{"date_str":"2026-02-01","mbytes":1424},{"date_str":"2026-01-31","mbytes":1657},{"date_str":"2026-01-30","mbytes":1313},{"date_str":"2026-01-29","mbytes":1322},{"date_str":"2026-01-28","mbytes":1280},{"date_str":"2026-01-27","mbytes":1512},{"date_str":"2026-01-26","mbytes":0},{"date_str":"2026-01-25","mbytes":1274},{"date_str":"2026-01-24","mbytes":1560},{"date_str":"2026-01-23","mbytes":1196},{"date_str":"2026-01-22","mbytes":1},{"date_str":"2026-01-21","mbytes":0},{"date_str":"2026-01-20","mbytes":0},{"date_str":"2026-01-19","mbytes":1395},{"date_str":"2026-01-18","mbytes":1197},{"date_str":"2026-01-17","mbytes":1165},{"date_str":"2026-01-16","mbytes":1276},{"date_str":"2026-01-15","mbytes":1245},{"date_str":"2026-01-14","mbytes":2310},{"date_str":"2026-01-13","mbytes":1892},{"date_str":"2026-01-12","mbytes":1890},{"date_str":"2026-01-11","mbytes":1712},{"date_str":"2026-01-10","mbytes":1470},{"date_str":"2026-01-09","mbytes":1362},{"date_str":"2026-01-08","mbytes":1181},{"date_str":"2026-01-07","mbytes":1076},{"date_str":"2026-01-06","mbytes":1021},{"date_str":"2026-01-05","mbytes":1374},{"date_str":"2026-01-04","mbytes":1702},{"date_str":"2026-01-03","mbytes":1438},{"date_str":"2026-01-02","mbytes":1333},{"date_str":"2026-01-01","mbytes":1588},{"date_str":"2025-12-31","mbytes":1460},{"date_str":"2025-12-30","mbytes":1329},{"date_str":"2025-12-29","mbytes":1408},{"date_str":"2025-12-28","mbytes":1248},{"date_str":"2025-12-27","mbytes":1419},{"date_str":"2025-12-26","mbytes":1669},{"date_str":"2025-12-25","mbytes":1624},{"date_str":"2025-12-24","mbytes":2983},{"date_str":"2025-12-23","mbytes":1417},{"date_str":"2025-12-22","mbytes":1668},{"date_str":"2025-12-21","mbytes":2321},{"date_str":"2025-12-20","mbytes":1466},{"date_str":"2025-12-19","mbytes":2033},{"date_str":"2025-12-18","mbytes":1683},{"date_str":"2025-12-17","mbytes":1766},{"date_str":"2025-12-16","mbytes":1648},{"date_str":"2025-12-15","mbytes":1575},{"date_str":"2025-12-14","mbytes":1607},{"date_str":"2025-12-13","mbytes":1567},{"date_str":"2025-12-12","mbytes":1791},{"date_str":"2025-12-11","mbytes":1751},{"date_str":"2025-12-10","mbytes":1462},{"date_str":"2025-12-09","mbytes":25},{"date_str":"2025-12-08","mbytes":1632}]; 
         let myChart = null;
 
         function init() {
             const select = document.getElementById('monthSelect');
-            
             if (!rawData || rawData.length === 0) {
                 select.innerHTML = '<option>데이터가 없습니다</option>';
                 return;
             }
-
             const months = new Set();
             rawData.forEach(d => months.add(d.date_str.substring(0, 7)));
             const sortedMonths = Array.from(months).sort().reverse();
-
             select.innerHTML = '';
             sortedMonths.forEach(m => {
                 const opt = document.createElement('option');
@@ -101,7 +96,6 @@
                 opt.text = m;
                 select.appendChild(opt);
             });
-
             if (sortedMonths.length > 0) {
                 select.value = sortedMonths[0];
                 updateDashboard();
@@ -115,45 +109,31 @@
 
             let sum = 0;
             chartData.forEach(d => sum += d.mbytes);
-            const avg = chartData.length ? (sum / chartData.length).toFixed(2) : 0;
+            // 평균값 소수점 없이 정수로 (toFixed(0))
+            const avg = chartData.length ? (sum / chartData.length).toFixed(0) : 0;
             
-            // 자바스크립트 템플릿 리터럴 사용 (안전함)
             document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
             
-            // --- 추가된 로직: 최저/최고/평균/중간 별도 표기 ---
             if (chartData.length > 0) {
-                // 최저값 찾기
                 const minRow = chartData.reduce((prev, curr) => prev.mbytes < curr.mbytes ? prev : curr);
-                // 최고값 찾기
                 const maxRow = chartData.reduce((prev, curr) => prev.mbytes > curr.mbytes ? prev : curr);
-
-                // 중간값 계산
                 const sortedMbytes = chartData.map(d => d.mbytes).sort((a, b) => a - b);
                 const mid = Math.floor(sortedMbytes.length / 2);
                 let median = 0;
                 if (sortedMbytes.length % 2 !== 0) {
                     median = sortedMbytes[mid];
                 } else {
-                    median = ((sortedMbytes[mid - 1] + sortedMbytes[mid]) / 2).toFixed(2);
+                    // 중간값 소수점 없이 정수로 (toFixed(0))
+                    median = ((sortedMbytes[mid - 1] + sortedMbytes[mid]) / 2).toFixed(0);
                 }
 
                 document.getElementById('minDate').innerText = minRow.date_str;
                 document.getElementById('minVal').innerText = minRow.mbytes;
-                
                 document.getElementById('maxDate').innerText = maxRow.date_str;
                 document.getElementById('maxVal').innerText = maxRow.mbytes;
-
                 document.getElementById('avgValTable').innerText = avg;
                 document.getElementById('medianVal').innerText = median;
-            } else {
-                document.getElementById('minDate').innerText = "-";
-                document.getElementById('minVal').innerText = "-";
-                document.getElementById('maxDate').innerText = "-";
-                document.getElementById('maxVal').innerText = "-";
-                document.getElementById('avgValTable').innerText = "-";
-                document.getElementById('medianVal').innerText = "-";
             }
-            // --- 추가된 로직 끝 ---
 
             const tbody = document.querySelector('#trafficTable tbody');
             tbody.innerHTML = '';
@@ -165,7 +145,6 @@
 
             const ctx = document.getElementById('trafficChart').getContext('2d');
             if (myChart) myChart.destroy();
-
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -182,7 +161,6 @@
                 options: { responsive: true }
             });
         }
-
         init();
     </script>
 </body>
