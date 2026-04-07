@@ -213,7 +213,7 @@ jobs:
                       // 평균값 소수점 없이 정수로 (toFixed(0))
                       const avg = chartData.length ? (sum / chartData.length).toFixed(0) : 0;
                       
-                      document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${avg} MB`;
+                      document.getElementById('avgText').innerText = `💡 ${month} 일평균: ${Number(avg).toLocaleString()} MB`;
                       
                       if (chartData.length > 0) {
                           const minRow = chartData.reduce((prev, curr) => prev.mbytes < curr.mbytes ? prev : curr);
@@ -229,18 +229,18 @@ jobs:
                           }
 
                           document.getElementById('minDate').innerText = minRow.date_str;
-                          document.getElementById('minVal').innerText = minRow.mbytes;
+                          document.getElementById('minVal').innerText = Number(minRow.mbytes).toLocaleString();
                           document.getElementById('maxDate').innerText = maxRow.date_str;
-                          document.getElementById('maxVal').innerText = maxRow.mbytes;
-                          document.getElementById('avgValTable').innerText = avg;
-                          document.getElementById('medianVal').innerText = median;
+                          document.getElementById('maxVal').innerText = Number(maxRow.mbytes).toLocaleString();
+                          document.getElementById('avgValTable').innerText = Number(avg).toLocaleString();
+                          document.getElementById('medianVal').innerText = Number(median).toLocaleString();
                       }
 
                       const tbody = document.querySelector('#trafficTable tbody');
                       tbody.innerHTML = '';
                       data.forEach(row => {
                           const tr = document.createElement('tr');
-                          tr.innerHTML = `<td>${row.date_str}</td><td>${row.mbytes} MB</td>`;
+                          tr.innerHTML = `<td>${row.date_str}</td><td>${Number(row.mbytes).toLocaleString()} MB</td>`;
                           tbody.appendChild(tr);
                       });
 
@@ -259,7 +259,27 @@ jobs:
                                   tension: 0.2
                               }]
                           },
-                          options: { responsive: true }
+                          options: { 
+                              responsive: true,
+                              scales: {
+                                  y: {
+                                      ticks: {
+                                          callback: function(value) {
+                                              return value.toLocaleString();
+                                          }
+                                      }
+                                  }
+                              },
+                              plugins: {
+                                  tooltip: {
+                                      callbacks: {
+                                          label: function(context) {
+                                              return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' MB';
+                                          }
+                                      }
+                                  }
+                              }
+                          }
                       });
                   }
                   init();
@@ -279,5 +299,5 @@ jobs:
           git config --global user.name "TrafficBot"
           git config --global user.email "bot@noreply.github.com"
           git add traffic_data.csv index.html
-          git commit -m "Update Dashboard (Integer only)" || exit 0
+          git commit -m "Update Dashboard (Added comma format)" || exit 0
           git push
