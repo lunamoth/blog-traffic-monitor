@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
@@ -43,7 +43,7 @@ jobs:
           import re
 
           # --- 설정 ---
-          URL = "https://lunamoth.com/throttle-me"
+          URL = "http://lunamoth.com/throttle-me"
           CSV_FILE = "traffic_data.csv"
           HTML_FILE = "index.html"
           
@@ -52,8 +52,12 @@ jobs:
           # 1. 데이터 수집
           print(f"Connecting to {URL}...")
           response = requests.get(URL, headers=headers, timeout=30)
-          response.raise_for_status()
+          # 기존 throttle-me 엔드포인트는 HTTP 기반의 오래된 mod_throttle 페이지입니다.
+          # 상태 코드가 2xx가 아니더라도 본문에 정상 데이터가 포함될 수 있으므로
+          # raise_for_status()로 즉시 중단하지 않고 실제 데이터 파싱 성공 여부로 판단합니다.
           print(f"HTTP {response.status_code}: {response.url}")
+          if not response.text.strip():
+              raise RuntimeError("throttle-me returned an empty response body")
           soup = BeautifulSoup(response.text, 'html.parser')
 
           kbytes = None
@@ -70,7 +74,13 @@ jobs:
                           break
 
           if kbytes is None:
-              raise RuntimeError("lunamoth.biz traffic data was not found in the source HTML")
+              # 장애 원인을 다음 실행 로그에서 바로 확인할 수 있도록 응답 일부를 출력
+              preview = re.sub(r'\s+', ' ', response.text[:1000]).strip()
+              print(f"Response preview: {preview}")
+              raise RuntimeError(
+                  f"lunamoth.biz traffic data was not found in the source HTML "
+                  f"(HTTP {response.status_code}, final URL: {response.url})"
+              )
 
           # CSV 저장 (GitHub runner의 UTC가 아니라 한국 날짜 기준)
           now = datetime.now(ZoneInfo("Asia/Seoul"))
