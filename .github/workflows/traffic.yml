@@ -2,7 +2,8 @@ name: Traffic Monitor
 
 on:
   schedule:
-    - cron: '30 7 * * *'
+    - cron: '30 16 * * *'
+      timezone: 'Asia/Seoul'
   workflow_dispatch:
 
 permissions:
@@ -10,18 +11,25 @@ permissions:
 
 jobs:
   update-traffic:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    concurrency:
+      group: traffic-monitor
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.9'
+          python-version: '3.13'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 pandas
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests beautifulsoup4 pandas
 
       - name: Run Traffic Script
         shell: python
@@ -30,62 +38,62 @@ jobs:
           from bs4 import BeautifulSoup
           import pandas as pd
           from datetime import datetime
+          from zoneinfo import ZoneInfo
           import os
-          import json
+          import re
 
           # --- 설정 ---
-          URL = "http://lunamoth.com/throttle-me"
+          URL = "https://lunamoth.com/throttle-me"
           CSV_FILE = "traffic_data.csv"
           HTML_FILE = "index.html"
           
           headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
           # 1. 데이터 수집
-          try:
-              print(f"Connecting to {URL}...")
-              response = requests.get(URL, headers=headers, timeout=30)
-              soup = BeautifulSoup(response.text, 'html.parser')
-              
-              kbytes = 0
-              found = False
-              
-              rows = soup.find_all('tr')
-              for row in rows:
-                  if "lunamoth.biz" in row.text:
-                      cols = [ele.text.strip() for ele in row.find_all(['td', 'th'])]
-                      if len(cols) > 5:
-                          kbytes = int(cols[5])
-                          found = True
-                          break
-              
-              if found:
-                  # CSV 저장
-                  now = datetime.now()
-                  today_str = now.strftime("%Y-%m-%d")
-                  # 소수점 없이 반올림하여 정수로 저장 (round 0)
-                  mbytes = int(round(kbytes / 1024, 0))
-                  
-                  new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
-                  
-                  if os.path.exists(CSV_FILE):
-                      df = pd.read_csv(CSV_FILE)
-                      df = df[df['date'] != today_str]
-                      df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                  else:
-                      df = pd.DataFrame([new_data])
-                  
-                  df['date'] = pd.to_datetime(df['date'])
-                  # 모든 데이터를 정수형으로 변환
-                  df['mbytes'] = df['mbytes'].round(0).astype(int)
-                  df = df.sort_values('date')
-                  df.to_csv(CSV_FILE, index=False)
-                  print("CSV Saved.")
-              else:
-                  print("Data not found in HTML.")
+          print(f"Connecting to {URL}...")
+          response = requests.get(URL, headers=headers, timeout=30)
+          response.raise_for_status()
+          print(f"HTTP {response.status_code}: {response.url}")
+          soup = BeautifulSoup(response.text, 'html.parser')
 
-          except Exception as e:
-              print(f"Error: {e}")
-              pass
+          kbytes = None
+
+          rows = soup.find_all('tr')
+          for row in rows:
+              if "lunamoth.biz" in row.get_text(" ", strip=True):
+                  cols = [ele.get_text(" ", strip=True) for ele in row.find_all(['td', 'th'])]
+                  if len(cols) > 5:
+                      # 쉼표/공백 등 표시용 구분자가 생겨도 숫자 자체는 안전하게 파싱
+                      value = re.sub(r'[^0-9]', '', cols[5])
+                      if value:
+                          kbytes = int(value)
+                          break
+
+          if kbytes is None:
+              raise RuntimeError("lunamoth.biz traffic data was not found in the source HTML")
+
+          # CSV 저장 (GitHub runner의 UTC가 아니라 한국 날짜 기준)
+          now = datetime.now(ZoneInfo("Asia/Seoul"))
+          today_str = now.strftime("%Y-%m-%d")
+          # 소수점 없이 반올림하여 정수로 저장 (round 0)
+          mbytes = int(round(kbytes / 1024, 0))
+
+          new_data = {'date': today_str, 'kbytes': kbytes, 'mbytes': mbytes}
+
+          if os.path.exists(CSV_FILE):
+              df = pd.read_csv(CSV_FILE)
+              df = df[df['date'].astype(str) != today_str]
+              df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+          else:
+              df = pd.DataFrame([new_data])
+
+          df['date'] = pd.to_datetime(df['date'])
+          # 모든 데이터를 정수형으로 변환
+          df['kbytes'] = pd.to_numeric(df['kbytes'], errors='raise').astype(int)
+          df['mbytes'] = pd.to_numeric(df['mbytes'], errors='raise').round(0).astype(int)
+          df = df.sort_values('date')
+          df.to_csv(CSV_FILE, index=False)
+          print(f"CSV Saved: {today_str}, {kbytes:,} KB ({mbytes:,} MB)")
 
           # 2. HTML 생성
           json_str = "[]"
@@ -97,7 +105,7 @@ jobs:
               df_desc = df.sort_values('date', ascending=False)
               json_str = df_desc[['date_str', 'mbytes']].to_json(orient='records')
 
-          update_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+          update_time = datetime.now(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S KST')
 
           html_template = """
           <!DOCTYPE html>
@@ -296,8 +304,14 @@ jobs:
 
       - name: Commit and Push
         run: |
-          git config --global user.name "TrafficBot"
-          git config --global user.email "bot@noreply.github.com"
+          git config user.name "TrafficBot"
+          git config user.email "bot@noreply.github.com"
           git add traffic_data.csv index.html
-          git commit -m "Update Dashboard (Added comma format)" || exit 0
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update traffic dashboard"
           git push
